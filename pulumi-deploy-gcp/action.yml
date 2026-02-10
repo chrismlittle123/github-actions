@@ -29,6 +29,10 @@ inputs:
     description: Additional arguments to pass to pulumi up
     required: false
     default: ""
+  pulumi-config-passphrase:
+    description: Passphrase for Pulumi config encryption
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -57,13 +61,13 @@ runs:
       working-directory: ${{ inputs.working-directory }}
 
     - name: Install Pulumi CLI
-      uses: pulumi/actions@v6
-      with:
-        command: version
+      uses: pulumi/setup-pulumi@v2
 
     - name: Deploy
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      env:
+        PULUMI_CONFIG_PASSPHRASE: ${{ inputs.pulumi-config-passphrase }}
       run: |
         pulumi login ${{ inputs.pulumi-state-bucket }}
         pulumi stack select ${{ inputs.environment }}
