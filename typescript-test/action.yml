@@ -1,0 +1,53 @@
+name: TypeScript Test
+description: Run vitest with coverage enforcement for TypeScript projects
+
+inputs:
+  coverage-threshold:
+    description: Minimum coverage percentage required
+    required: false
+    default: "80"
+  vitest-args:
+    description: Additional arguments to pass to vitest
+    required: false
+    default: ""
+  build-command:
+    description: Optional build command to run before tests (e.g. pnpm build)
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Build
+      if: inputs.build-command != ''
+      shell: bash
+      run: ${{ inputs.build-command }}
+
+    - name: Run tests with coverage
+      shell: bash
+      run: npx vitest run ${{ inputs.vitest-args }} --coverage --coverage.reporter=json --coverage.reporter=text
+
+    - name: Check coverage threshold
+      shell: bash
+      run: |
+        threshold=${{ inputs.coverage-threshold }}
+        coverage=$(jq '.total.lines.pct' coverage/coverage-summary.json)
+        echo "Coverage: ${coverage}%"
+        echo "Threshold: ${threshold}%"
+        if [ "$(echo "${coverage} < ${threshold}" | bc -l)" -eq 1 ]; then
+          echo "::error::Coverage ${coverage}% is below the required threshold of ${threshold}%"
+          exit 1
+        fi

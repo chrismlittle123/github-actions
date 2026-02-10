@@ -1,0 +1,72 @@
+name: Pulumi Deploy GCP
+description: Deploy infrastructure to GCP using Pulumi with Workload Identity Federation
+
+inputs:
+  workload-identity-provider:
+    description: GCP Workload Identity Provider resource name
+    required: true
+  service-account:
+    description: GCP service account email for Workload Identity
+    required: true
+  gcp-project:
+    description: GCP project ID
+    required: true
+  pulumi-state-bucket:
+    description: GCS bucket URL for Pulumi state (e.g. gs://my-pulumi-state)
+    required: true
+  environment:
+    description: Pulumi stack/environment name
+    required: true
+  gcp-region:
+    description: GCP region
+    required: false
+    default: "europe-west2"
+  working-directory:
+    description: Directory containing Pulumi project
+    required: false
+    default: "infra"
+  pulumi-args:
+    description: Additional arguments to pass to pulumi up
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Authenticate to GCP
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ inputs.workload-identity-provider }}
+        service_account: ${{ inputs.service-account }}
+
+    - name: Setup gcloud
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+      working-directory: ${{ inputs.working-directory }}
+
+    - name: Install Pulumi CLI
+      uses: pulumi/actions@v6
+      with:
+        command: version
+
+    - name: Deploy
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        pulumi login ${{ inputs.pulumi-state-bucket }}
+        pulumi stack select ${{ inputs.environment }}
+        pulumi config set gcp:project ${{ inputs.gcp-project }}
+        pulumi config set gcp:region ${{ inputs.gcp-region }}
+        pulumi up --yes ${{ inputs.pulumi-args }}

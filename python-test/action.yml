@@ -1,0 +1,51 @@
+name: Python Test
+description: Run pytest with coverage enforcement for Python projects
+
+inputs:
+  python-version:
+    description: Python version to use
+    required: false
+    default: "3.13"
+  uv-sync-args:
+    description: Arguments to pass to uv sync
+    required: false
+    default: "--all-extras"
+  pytest-args:
+    description: Additional arguments to pass to pytest
+    required: false
+    default: ""
+  coverage-threshold:
+    description: Minimum coverage percentage required
+    required: false
+    default: "80"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v4
+
+    - name: Install dependencies
+      shell: bash
+      run: uv sync ${{ inputs.uv-sync-args }}
+
+    - name: Run tests with coverage
+      shell: bash
+      run: uv run pytest ${{ inputs.pytest-args }} --cov --cov-report=json --cov-report=term-missing
+
+    - name: Check coverage threshold
+      shell: bash
+      run: |
+        threshold=${{ inputs.coverage-threshold }}
+        coverage=$(python -c "import json; print(json.load(open('coverage.json'))['totals']['percent_covered_display'])")
+        echo "Coverage: ${coverage}%"
+        echo "Threshold: ${threshold}%"
+        if [ "$(echo "${coverage} < ${threshold}" | bc -l)" -eq 1 ]; then
+          echo "::error::Coverage ${coverage}% is below the required threshold of ${threshold}%"
+          exit 1
+        fi

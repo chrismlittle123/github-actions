@@ -1,0 +1,44 @@
+name: Python Standards Check
+description: Run @standards-kit/conform audit and check for Python projects
+
+inputs:
+  python-version:
+    description: Python version to use
+    required: false
+    default: "3.13"
+  uv-sync-args:
+    description: Arguments to pass to uv sync
+    required: false
+    default: "--all-extras"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v4
+
+    - name: Install dependencies
+      shell: bash
+      run: uv sync ${{ inputs.uv-sync-args }}
+
+    - name: Add venv to PATH
+      shell: bash
+      run: echo "${{ github.workspace }}/.venv/bin" >> "$GITHUB_PATH"
+
+    - name: Conform audit
+      shell: bash
+      run: npx @standards-kit/conform audit
+
+    - name: Conform check
+      shell: bash
+      run: npx @standards-kit/conform check

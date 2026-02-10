@@ -1,0 +1,56 @@
+name: TypeScript Standards Check
+description: Run @standards-kit/conform audit and check for TypeScript projects (monorepo-aware)
+
+inputs:
+  build-command:
+    description: Optional build command to run before checks (e.g. pnpm build)
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Build
+      if: inputs.build-command != ''
+      shell: bash
+      run: ${{ inputs.build-command }}
+
+    - name: Detect projects and run conform
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        projects_json=$(npx @standards-kit/conform projects detect --format json)
+        paths=$(echo "$projects_json" | jq -r '.projects[].path')
+
+        failed=0
+
+        for project_path in $paths; do
+          echo "::group::Conform: $project_path"
+          if [ "$project_path" = "." ]; then
+            npx @standards-kit/conform audit || failed=1
+            npx @standards-kit/conform check || failed=1
+          else
+            npx @standards-kit/conform audit --config "$project_path/standards.toml" || failed=1
+            npx @standards-kit/conform check --config "$project_path/standards.toml" || failed=1
+          fi
+          echo "::endgroup::"
+        done
+
+        if [ "$failed" -ne 0 ]; then
+          echo "::error::One or more conform checks failed"
+          exit 1
+        fi

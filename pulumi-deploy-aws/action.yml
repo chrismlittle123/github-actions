@@ -1,0 +1,62 @@
+name: Pulumi Deploy AWS
+description: Deploy infrastructure to AWS using Pulumi with OIDC authentication
+
+inputs:
+  role-to-assume:
+    description: AWS IAM role ARN to assume via OIDC
+    required: true
+  pulumi-state-bucket:
+    description: S3 bucket URL for Pulumi state (e.g. s3://my-pulumi-state)
+    required: true
+  environment:
+    description: Pulumi stack/environment name
+    required: true
+  aws-region:
+    description: AWS region
+    required: false
+    default: "eu-west-2"
+  working-directory:
+    description: Directory containing Pulumi project
+    required: false
+    default: "infra"
+  pulumi-args:
+    description: Additional arguments to pass to pulumi up
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.role-to-assume }}
+        aws-region: ${{ inputs.aws-region }}
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+      working-directory: ${{ inputs.working-directory }}
+
+    - name: Install Pulumi CLI
+      uses: pulumi/actions@v6
+      with:
+        command: version
+
+    - name: Deploy
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        pulumi login ${{ inputs.pulumi-state-bucket }}
+        pulumi stack select ${{ inputs.environment }}
+        pulumi refresh --yes
+        pulumi up --yes ${{ inputs.pulumi-args }}
