@@ -19,11 +19,6 @@ inputs:
     description: Directory containing Pulumi project
     required: false
     default: "infra"
-  timeout-minutes:
-    description: Timeout in minutes for the destroy operation
-    required: false
-    default: "30"
-
 runs:
   using: composite
   steps:
@@ -54,7 +49,6 @@ runs:
     - name: Destroy
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      timeout-minutes: ${{ fromJSON(inputs.timeout-minutes) }}
       run: |
         export PATH="$HOME/.pulumi/bin:$PATH"
         pulumi login ${{ inputs.pulumi-state-bucket }}
