@@ -48,15 +48,15 @@ runs:
       working-directory: ${{ inputs.working-directory }}
 
     - name: Install Pulumi CLI
-      uses: pulumi/actions@v6
-      with:
-        command: version
+      shell: bash
+      run: curl -fsSL https://get.pulumi.com | sh && echo "$HOME/.pulumi/bin" >> $GITHUB_PATH
 
     - name: Destroy
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       timeout-minutes: ${{ fromJSON(inputs.timeout-minutes) }}
       run: |
+        export PATH="$HOME/.pulumi/bin:$PATH"
         pulumi login ${{ inputs.pulumi-state-bucket }}
         pulumi stack select ${{ inputs.environment }}
         pulumi refresh --yes
