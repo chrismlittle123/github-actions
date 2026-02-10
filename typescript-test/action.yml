@@ -38,7 +38,7 @@ runs:
 
     - name: Run tests with coverage
       shell: bash
-      run: npx vitest run ${{ inputs.vitest-args }} --coverage --coverage.reporter=json --coverage.reporter=text
+      run: npx vitest run ${{ inputs.vitest-args }} --coverage --coverage.reporter=json-summary --coverage.reporter=text
 
     - name: Check coverage threshold
       shell: bash
