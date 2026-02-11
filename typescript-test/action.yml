@@ -14,6 +14,10 @@ inputs:
     description: Optional build command to run before tests (e.g. pnpm build)
     required: false
     default: ""
+  working-directory:
+    description: Working directory for install and test commands
+    required: false
+    default: "."
 
 runs:
   using: composite
@@ -26,22 +30,27 @@ runs:
       with:
         node-version: 22
         cache: pnpm
+        cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
 
     - name: Install dependencies
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: pnpm install --frozen-lockfile
 
     - name: Build
       if: inputs.build-command != ''
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: ${{ inputs.build-command }}
 
     - name: Run tests with coverage
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: npx vitest run ${{ inputs.vitest-args }} --coverage --coverage.reporter=json-summary --coverage.reporter=text
 
     - name: Check coverage threshold
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: |
         threshold=${{ inputs.coverage-threshold }}
         coverage=$(jq '.total.lines.pct' coverage/coverage-summary.json)
